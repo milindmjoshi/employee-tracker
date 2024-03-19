@@ -53,7 +53,7 @@ function showTrackerMenu() {
                 console.log("Add a Department selected");
                 await addDepartment();
                 break;
-            case "Add a Department":
+            case "Add a Role":
                 console.log("Add a Role selected");
                 await addRole();
                 break;
@@ -87,6 +87,8 @@ async function viewDepartments() {
     let dbPromise = dbAPIPromiseWrapper(SQL);
     let rows = await dbPromise;
     printTable(rows);
+    console.log(rows);
+    return rows;
 }
 
 function dbAPIPromiseWrapper(query,params) {
@@ -141,18 +143,41 @@ async function addDepartment() {
     })
 }
 
-function addRole() {
+async function getDepartmentsArray(){
+    let departments = await viewDepartments();
+    // Add value key to the dept array and set to id since inquirer requires
+    let choiceArray = new Array();
+    departments.forEach((dept)=>choiceArray.push({"value": dept.id, "name":dept.name}));
+    return choiceArray;
+}
+
+async function addRole() {
+    let deptArray = await getDepartmentsArray();
+    console.log("Dept Array:" + JSON.stringify(deptArray));
+     
+
     const SQL = "INSERT INTO ROLE(title,salary,department_id) VALUES (?,?,?)";
-    inquirer.prompt(
+    await inquirer.prompt(
         [{
             type: 'text',
-            name: 'tile',
+            name: 'title',
             message: 'What is the title of the role to add?'
-        }]
-    ).then((answers) => {
-        console.log(answers.department);
-        db.query(SQL, [answers.department], (err, results, fields) => {
-            if (err) return console.error(err.message);
-        })
+        },
+        {
+            type: 'number',
+            name: 'salary',
+            message: 'What is the salary of the role to add?'
+        },
+        {
+            type: 'list',
+            name: 'department_id',
+            message: 'Which department does the role belong to?',
+            choices:  deptArray
+        },
+        ]
+    ).then(async (answers) => {
+        console.log(answers);
+        let dbPromise = dbAPIPromiseWrapper(SQL,[answers.title,answers.salary,answers.department_id]);
+        let results = await dbPromise;
     })
 }
