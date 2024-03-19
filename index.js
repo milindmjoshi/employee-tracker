@@ -5,7 +5,7 @@ const db = require("./db/connection");
 const { printTable } = require('console-table-printer');
 
 // Show banner for application
-console.log(figlet.textSync("Employee Manager",{
+console.log(figlet.textSync("Employee Manager", {
     font: "Standard",
     horizontalLayout: "default",
     verticalLayout: "default",
@@ -57,6 +57,14 @@ function showTrackerMenu() {
                 console.log("Add a Role selected");
                 await addRole();
                 break;
+            case "Add an Employee":
+                console.log("Add an Employee selected");
+                await addEmployee();
+                break;
+            case "Update Employee Role":
+                console.log("Update an Employee role selected");
+                await updateEmployeeRole();
+                break;
             case "Quit":
                 console.log("Quit selected");
                 process.exit(0);
@@ -91,9 +99,9 @@ async function viewDepartments() {
     return rows;
 }
 
-function dbAPIPromiseWrapper(query,params) {
+function dbAPIPromiseWrapper(query, params) {
     return new Promise((resolve, reject) => {
-        db.query(query, params,(err, rows, fields) => {
+        db.query(query, params, (err, rows, fields) => {
             if (err) {
                 reject(err);
             }
@@ -111,20 +119,25 @@ async function viewRoles() {
     let dbPromise = dbAPIPromiseWrapper(SQL);
     let rows = await dbPromise;
     printTable(rows);
+    return rows;
 }
 
 
 
 async function viewEmployees() {
-    const SQL = "SELECT employee.id, employee.first_name, employee.last_name, role.title,role.salary, department.name AS 'dept name' " +
-        " FROM employee " +
+    const SQL = "SELECT emp.id, emp.first_name, emp.last_name, role.title,role.salary, " + 
+                " department.name AS 'dept name' , CONCAT(man.first_name,' ',man.last_name) AS 'manager' " +
+        " FROM employee emp" +
         " JOIN role " +
-        " ON employee.role_id = role.id " +
+        " ON emp.role_id = role.id " +
         " JOIN department " +
-        " ON role.department_id = department.id;";
+        " ON role.department_id = department.id " +
+        " LEFT JOIN employee man" +
+        " ON emp.manager_id = man.id"
     let dbPromise = dbAPIPromiseWrapper(SQL);
     let rows = await dbPromise;
     printTable(rows);
+    return rows;
 }
 
 async function addDepartment() {
@@ -135,26 +148,44 @@ async function addDepartment() {
             name: 'department',
             message: 'What is the name of the department to add?'
         }]
-    ).then( async (answers) => {
+    ).then(async (answers) => {
         console.log(answers.department);
-        let dbPromise = dbAPIPromiseWrapper(SQL,[answers.department]);
+        let dbPromise = dbAPIPromiseWrapper(SQL, [answers.department]);
         let results = await dbPromise;
         //console.log(results);
     })
 }
 
-async function getDepartmentsArray(){
+async function getDepartmentsArray() {
     let departments = await viewDepartments();
     // Add value key to the dept array and set to id since inquirer requires
     let choiceArray = new Array();
-    departments.forEach((dept)=>choiceArray.push({"value": dept.id, "name":dept.name}));
+    departments.forEach((dept) => choiceArray.push({ "value": dept.id, "name": dept.name }));
     return choiceArray;
+}
+
+async function getRolesArray() {
+    let roles = await viewRoles();
+    // Add value key to the role array and set to id since inquirer requires
+    let rolesArray = new Array();
+    roles.forEach((role) => rolesArray.push({ "value": role.id, "name": role.title }));
+    return rolesArray;
+}
+
+async function getEmployeeArray() {
+    let employees = await viewEmployees();
+    // Add value key to the employee array and set to id since inquirer requires
+    let employeeArray = new Array();
+    // Add none for cases where employee does not have a manager
+    employeeArray.push({ "value": null, "name": "None" });
+    employees.forEach((employee) => employeeArray.push({ "value": employee.id, "name": employee.first_name + " " + employee.last_name }));
+    return employeeArray;
 }
 
 async function addRole() {
     let deptArray = await getDepartmentsArray();
     console.log("Dept Array:" + JSON.stringify(deptArray));
-     
+
 
     const SQL = "INSERT INTO ROLE(title,salary,department_id) VALUES (?,?,?)";
     await inquirer.prompt(
@@ -172,12 +203,52 @@ async function addRole() {
             type: 'list',
             name: 'department_id',
             message: 'Which department does the role belong to?',
-            choices:  deptArray
+            choices: deptArray
         },
         ]
     ).then(async (answers) => {
         console.log(answers);
-        let dbPromise = dbAPIPromiseWrapper(SQL,[answers.title,answers.salary,answers.department_id]);
+        let dbPromise = dbAPIPromiseWrapper(SQL, [answers.title, answers.salary, answers.department_id]);
+        let results = await dbPromise;
+    })
+}
+
+async function addEmployee() {
+    let roleArray = await getRolesArray();
+    console.log("Dept Array:" + JSON.stringify(roleArray));
+
+    let employeeArray = await getEmployeeArray();
+    console.log("Emp Array:" + JSON.stringify(employeeArray));
+
+
+    const SQL = "INSERT INTO EMPLOYEE(first_name,last_name,role_id,manager_id) VALUES (?,?,?,?)";
+    await inquirer.prompt(
+        [{
+            type: 'text',
+            name: 'firstName',
+            message: 'What is the first name of the Employee to add?'
+        },
+        {
+            type: 'text',
+            name: 'lastName',
+            message: 'What is the last name of the Employee to add?'
+        },
+        {
+            type: 'list',
+            name: 'role_id',
+            message: 'What is the role of the Employee to add?',
+            choices: roleArray
+        },
+        {
+            type: 'list',
+            name: 'manager_id',
+            message: 'What is the employee manager?',
+            choices: employeeArray
+        },
+        ]
+    ).then(async (answers) => {
+        console.log(answers);
+        let dbPromise = dbAPIPromiseWrapper(SQL, [answers.firstName, answers.lastName, answers.role_id, answers.manager_id]);
         let results = await dbPromise;
     })
 }
