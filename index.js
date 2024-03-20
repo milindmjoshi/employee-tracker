@@ -18,10 +18,10 @@ showTrackerMenu();
 
 
 function showTrackerMenu() {
-    console.log("show menu");
+    //console.log("show menu");
     inquirer.prompt(
         [{
-            type: 'rawlist',
+            type: 'list',
             name: 'menuChoice',
             message: 'What would you like to do',
             choices: ['View All Departments',
@@ -30,43 +30,44 @@ function showTrackerMenu() {
                 'Add a Department',
                 'Add a Role',
                 'Add an Employee',
+                'Update Employee Role',
                 'Quit'],
             default: 0
         }]
     ).then(async (answers) => {
-        console.log(answers);
+        //console.log(answers);
         switch (answers.menuChoice) {
             case "View All Departments":
-                console.log("View Departments Selected");
+                //console.log("View Departments Selected");
                 await viewDepartments();
-                console.log("View Departments Exited");
+                //console.log("View Departments Exited");
                 break;
             case "View All Roles":
-                console.log("View All Roles selected");
+                //console.log("View All Roles selected");
                 await viewRoles();
                 break;
             case "View All Employees":
-                console.log("View all Employees selected");
+                //console.log("View all Employees selected");
                 await viewEmployees();
                 break;
             case "Add a Department":
-                console.log("Add a Department selected");
+                //console.log("Add a Department selected");
                 await addDepartment();
                 break;
             case "Add a Role":
-                console.log("Add a Role selected");
+                //console.log("Add a Role selected");
                 await addRole();
                 break;
             case "Add an Employee":
-                console.log("Add an Employee selected");
+                //console.log("Add an Employee selected");
                 await addEmployee();
                 break;
             case "Update Employee Role":
-                console.log("Update an Employee role selected");
+                //console.log("Update an Employee role selected");
                 await updateEmployeeRole();
                 break;
             case "Quit":
-                console.log("Quit selected");
+                console.log("Application exited");
                 process.exit(0);
             default:
                 console.log("Invalid selection");
@@ -76,26 +77,12 @@ function showTrackerMenu() {
     })
 }
 
-//  function viewDepartments() {
-//     const SQL = "SELECT id,name FROM DEPARTMENT";
-//     db.query(SQL, (err, rows, fields) => {
-//         if (err instanceof Error) {
-//             console.log(err);
-//             return;
-//         }
-//         // console.log(rows);
-//         // console.log(fields);
-//         printTable(rows);
-//     });
-//     console.log("Exit view departments");
-// }
-
 async function viewDepartments() {
     const SQL = "SELECT id,name FROM DEPARTMENT";
     let dbPromise = dbAPIPromiseWrapper(SQL);
     let rows = await dbPromise;
     printTable(rows);
-    console.log(rows);
+    //console.log(rows);
     return rows;
 }
 
@@ -149,10 +136,11 @@ async function addDepartment() {
             message: 'What is the name of the department to add?'
         }]
     ).then(async (answers) => {
-        console.log(answers.department);
+        //console.log(answers.department);
         let dbPromise = dbAPIPromiseWrapper(SQL, [answers.department]);
         let results = await dbPromise;
         //console.log(results);
+        console.log("Department " + answers.department + " added");
     })
 }
 
@@ -184,7 +172,7 @@ async function getEmployeeArray() {
 
 async function addRole() {
     let deptArray = await getDepartmentsArray();
-    console.log("Dept Array:" + JSON.stringify(deptArray));
+    //console.log("Dept Array:" + JSON.stringify(deptArray));
 
 
     const SQL = "INSERT INTO ROLE(title,salary,department_id) VALUES (?,?,?)";
@@ -207,18 +195,19 @@ async function addRole() {
         },
         ]
     ).then(async (answers) => {
-        console.log(answers);
+        //console.log(answers);
         let dbPromise = dbAPIPromiseWrapper(SQL, [answers.title, answers.salary, answers.department_id]);
         let results = await dbPromise;
+        console.log("Role " + answers.title + " added");
     })
 }
 
 async function addEmployee() {
     let roleArray = await getRolesArray();
-    console.log("Dept Array:" + JSON.stringify(roleArray));
+    //console.log("Dept Array:" + JSON.stringify(roleArray));
 
     let employeeArray = await getEmployeeArray();
-    console.log("Emp Array:" + JSON.stringify(employeeArray));
+    //console.log("Emp Array:" + JSON.stringify(employeeArray));
 
 
     const SQL = "INSERT INTO EMPLOYEE(first_name,last_name,role_id,manager_id) VALUES (?,?,?,?)";
@@ -247,8 +236,41 @@ async function addEmployee() {
         },
         ]
     ).then(async (answers) => {
-        console.log(answers);
+        //console.log(answers);
         let dbPromise = dbAPIPromiseWrapper(SQL, [answers.firstName, answers.lastName, answers.role_id, answers.manager_id]);
         let results = await dbPromise;
+        console.log("Employee " + answers.firstName + " " + answers.lastName + " added");
+    })
+}
+
+async function updateEmployeeRole() {
+    let roleArray = await getRolesArray();
+    //console.log("role Array:" + JSON.stringify(roleArray));
+
+    let employeeArray = await getEmployeeArray();
+    //console.log("Emp Array:" + JSON.stringify(employeeArray));
+
+
+    const SQL = "UPDATE employee SET role_id = ? " + 
+                " WHERE id = ?";
+    await inquirer.prompt(
+        [{
+            type: 'list',
+            name: 'employee_id',
+            message: 'Which employee role do you want to update?',
+            choices: employeeArray
+        },
+        {
+            type: 'list',
+            name: 'role_id',
+            message: 'Which role do you want to assign to the selected employee?',
+            choices: roleArray
+        }
+        ]
+    ).then(async (answers) => {
+        //console.log(answers);
+        let dbPromise = dbAPIPromiseWrapper(SQL, [answers.role_id, answers.employee_id]);
+        let results = await dbPromise;
+        console.log("Employee " + answers.firstName + " " + answers.lastName + " role updated");
     })
 }
